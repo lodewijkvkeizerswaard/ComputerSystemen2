@@ -29,13 +29,68 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
     int i, j, iterI, iterJ;
 
-    for (iterI = 0; iterI < 30; iterI += 8) {
-        for (iterJ = 0; iterJ < 30; iterJ += 8) {
-            for (i = iterI; i < (iterI + 8); i++) {
-                for (j = iterJ; j < (iterJ + 8); j++) {
-                    B[j][i] = A[i][j];
+    if (M == 32) {
+        
+        for (iterI = 0; iterI < 32; iterI += 16) {
+            if (iterI == 0) {
+                for (iterJ = 0; iterJ < 32; iterJ += 8) {
+                    for (i = iterI; i < (iterI + 16); i++) {
+                        for (j = iterJ; j < (iterJ + 8); j++) {
+                            B[j][i] = A[i][j];
+                        }
+                    }
                 }
             }
+            else {
+                for (iterJ = 24; iterJ >= 0; iterJ -= 8) {
+                    for (i = iterI; i < (iterI + 16); i++) {
+                        for (j = iterJ; j < (iterJ + 8); j++) {
+                            B[j][i] = A[i][j];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (M == 61) {
+
+        for (iterJ = 0; iterJ < 60; iterJ += 4) {
+            for (iterI = 0; iterI < 68; iterI += 4) {
+                for (j = iterJ; j < (iterJ + 4); j++) {
+                    for (i = iterI; (i < (iterI + 4)) && (i < 67); i++) {
+                        B[j][i] = A[i][j];
+                    }
+                }
+            }
+        }
+
+        for (i = 66; i >= 0; i--) {
+            B[j][i] = A[i][j];
+        }
+    }
+
+    if (M == 64) {
+        for (iterI = 0; iterI < 64; iterI += 8) {
+            if ((iterI % 16) == 0) {
+                for (iterJ = 0; iterJ < 64; iterJ += 4) {
+                    for (i = iterI; i < (iterI + 8); i++) {
+                        for (j = iterJ; j < (iterJ + 4); j++) {
+                            B[j][i] = A[i][j];
+                        }
+                    }
+                }
+            }
+            else {
+                for (iterJ = 60; iterJ >= 0; iterJ -= 4) {
+                    for (i = iterI; i < (iterI + 8); i++) {
+                        for (j = iterJ + 3; j >= iterJ; j--) {
+                            B[j][i] = A[i][j];
+                        }
+                    }
+                }
+            }
+            
         }
     }
 
