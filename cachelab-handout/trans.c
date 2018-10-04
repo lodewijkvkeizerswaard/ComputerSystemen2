@@ -1,6 +1,11 @@
+#include <stdio.h>
+
 /* 
  * trans.c - Matrix transpose B = A^T
  *
+ * Dante Niewenhuis = 11058595
+ * Lodewijk van Keizerswaard = 11054115
+ * 
  * Each transpose function must have a prototype of the form:
  * void trans(int M, int N, int A[N][M], int B[M][N]);
  *
@@ -22,6 +27,18 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
+    int i, j, iterI, iterJ;
+
+    for (iterI = 0; iterI < 30; iterI += 8) {
+        for (iterJ = 0; iterJ < 30; iterJ += 8) {
+            for (i = iterI; i < (iterI + 8); i++) {
+                for (j = iterJ; j < (iterJ + 8); j++) {
+                    B[j][i] = A[i][j];
+                }
+            }
+        }
+    }
+
 }
 
 /* 
