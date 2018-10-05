@@ -51,8 +51,8 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
     }
 
     if (M == 61) {
-        block_i = 4;
-        block_j = 4;
+        block_i = 8;
+        block_j = 8;
         int temp[block_j][block_i];
 
         for (iterJ = 0; iterJ < 60; iterJ += block_j) {
