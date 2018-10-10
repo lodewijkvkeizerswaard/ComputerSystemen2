@@ -27,45 +27,52 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
-    int i, j, iterI, iterJ, block_i, block_j;
+    int i, j, iterI, iterJ, block_i, block_j, temp, temp_made = 0;
 
     if (M == 32) {
         block_i = 8;
         block_j = 8;
-        int temp[block_j][block_i];
 
         for (iterI = 0; iterI < 32; iterI += block_i) {
             for (iterJ = 0; iterJ < 32; iterJ += block_j) {
                 for (i = iterI; i < (iterI + block_i); i++) {
                     for (j = iterJ; j < (iterJ + block_j); j++) {
-                        temp[j - iterJ][i - iterI] = A[i][j];
+                        if (i == j) {
+                            temp = A[i][j];
+                            temp_made = 1;
+                        }
+                        else {
+                            B[j][i] = A[i][j];
+                        }
+                    }
+                    if (temp_made) {
+                        temp_made = 0;
+                        B[i][i] = temp;
                     }
                 }
-                for (i = iterI; i < (iterI + block_i); i++) {
-                    for (j = iterJ; j < (iterJ + block_j); j++) {
-                        B[j][i] = temp[j - iterJ][i - iterI];
-                    }
-                } 
             }
         }
     }
 
     if (M == 61) {
-        block_i = 8;
-        block_j = 8;
-        int temp[block_j][block_i];
+        block_i = 4;
+        block_j = 16;
 
         for (iterJ = 0; iterJ < 60; iterJ += block_j) {
             for (iterI = 0; iterI < 68; iterI += block_i) {
                 for (j = iterJ; j < (iterJ + block_j); j++) {
                     for (i = iterI; (i < (iterI + block_i)) && (i < 67); i++) {
-                        temp[j - iterJ][i - iterI] = A[i][j];
+                        if (i == j) {
+                            temp = A[i][j];
+                            temp_made = 1;
+                        }
+                        else {
+                            B[j][i] = A[i][j];
+                        }
                     }
-                }
-
-                for (j = iterJ; j < (iterJ + block_j); j++) {
-                    for (i = iterI; (i < (iterI + block_i)) && (i < 67); i++) {
-                        B[j][i] = temp[j - iterJ][i - iterI];
+                    if (temp_made) {
+                        temp_made = 0;
+                        B[j][j] = temp;
                     }
                 }
             }
@@ -76,66 +83,52 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
         }
     }
 
-    // if (M == 64) {
-    //     block_i = 8;
-    //     block_j = 4;
-
-    //     for (iterI = 0; iterI < 64; iterI += block_i) {
-    //         if ((iterI % (2 * block_i)) == 0) {
-    //             for (iterJ = 0; iterJ < 64; iterJ += block_j) {
-
-    //                 if ((iterJ % (2 * block_j)) != 0) {
-    //                     for (i = iterI; i < (iterI + block_i); i++) {
-    //                         for (j = iterJ; j < (iterJ + block_j); j++) {
-    //                             B[j][i] = A[i][j];
-    //                         }
-    //                     }
-    //                 }
-
-    //                 else {
-    //                     for (i = (iterI + block_i - 1); i >= iterI; i--) {
-    //                         for (j = iterJ; j < (iterJ + block_j); j++) {
-    //                             B[j][i] = A[i][j];
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         else {
-    //             for (iterJ = 64 - block_j; iterJ >= 0; iterJ -= block_j) {
-    //                 for (i = iterI; i < (iterI + block_i); i++) {
-    //                     for (j = (iterJ + block_j - 1); j >= iterJ; j--) {
-    //                         B[j][i] = A[i][j];
-    //                     }
-    //                 }
-    //             }
-    //         }
-            
-    //     }
-    // }
-
     if (M == 64) {
-        block_i = 4;
+        block_i = 64;
         block_j = 4;
-        int temp[block_j][block_i];
 
-        for (iterI = 0; iterI < 64; iterI += block_i) {
-            for (iterJ = 0; iterJ < 64; iterJ += block_j) {
-                for (i = iterI; i < (iterI + block_i); i++) {
-                    for (j = iterJ; j < (iterJ + block_j); j++) {
-                        temp[j - iterJ][i - iterI] = A[i][j];
+
+        for (iterJ = 0; iterJ < 64; iterJ += block_j) {
+            if (iterJ % (block_j*2) == 0) {
+                for (iterI = 0; iterI < 64; iterI += block_i) {
+                    for (i = iterI; i < (iterI + block_i); i++) {
+                        for (j = iterJ; j < (iterJ + block_j); j++) {
+                            if (i == j) {
+                                temp = A[i][j];
+                                temp_made = 1;
+                            }
+                            else {
+                                B[j][i] = A[i][j];
+                            }
+                        }
+                        if (temp_made) {
+                            temp_made = 0;
+                            B[i][i] = temp;
+                        }
                     }
                 }
-                for (i = iterI; i < (iterI + block_i); i++) {
-                    for (j = iterJ; j < (iterJ + block_j); j++) {
-                        B[j][i] = temp[j - iterJ][i - iterI];
-                    }
-                } 
             }
-        }
+            else {
+                for (iterI = 64-block_i; iterI >= 0; iterI -= block_i) {
+                    for (i = (iterI + block_i - 1); i >= iterI ; i--) {
+                        for (j = iterJ; j < (iterJ + block_j); j++) {
+                            if (i == j) {
+                                temp = A[i][j];
+                                temp_made = 1;
+                            }
+                            else {
+                                B[j][i] = A[i][j];
+                            }
+                        }
+                        if (temp_made) {
+                            temp_made = 0;
+                            B[i][i] = temp;
+                        }
+                    }
+                }
+            }
+        }   
     }
-
 }
 
 /* 
