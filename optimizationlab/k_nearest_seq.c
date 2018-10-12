@@ -33,11 +33,35 @@ data_t manhattan_distance(data_t *x, data_t *y, int length){
 data_t squared_eucledean_distance(data_t *x,data_t *y, int length){
 	data_t distance=0;
 	int i = 0;
-	for(i=0;i<length;i++){
-		distance+= mult(abs_diff(x[i],y[i]),abs_diff(x[i],y[i]));
+
+	for(i = 0; i < length; i++){
+        distance += mult(abs_diff(x[i],y[i]),abs_diff(x[i],y[i]));
 	}
+
 	return distance;
 }
+
+/*
+OPTIONS:
+    haakjes = X
+    diff in plaats van abs_diff = X
+    abs_diff direct doen = X
+    mult direct doen = X
+
+*/
+
+data_t my_squared_eucledean_distance(data_t *x,data_t *y, int length){
+	data_t distance = 0;
+    data_t diff;
+	int i = 0;
+
+	for (i = 0; i < length; i++) {
+        distance += mult(abs_diff(x[i],y[i]), abs_diff(x[i],y[i]));
+	}
+
+	return distance;
+}
+
 data_t norm(data_t *x, int length){
     data_t n = 0;
     int i=0;
@@ -139,15 +163,20 @@ data_t *opt_classify_ED(unsigned int lookFor, unsigned int *found) {
 
 	timer_start(&stv);
     //FROM HERE
-	min_distance = squared_eucledean_distance(features[lookFor],features[0],FEATURE_LENGTH);
-    	result[0] = min_distance;
-	for(i=1;i<ROWS-1;i++){
-		current_distance = squared_eucledean_distance(features[lookFor],features[i],FEATURE_LENGTH);
-        	result[i]=current_distance;
-		if(current_distance<min_distance){
-			min_distance=current_distance;
-			closest_point=i;
+
+    data_t* x = features[lookFor];
+    
+	min_distance = my_squared_eucledean_distance(x,features[0],FEATURE_LENGTH);
+    result[0] = min_distance;
+	for(i = 0; i < ROWS - 1; i++){
+		current_distance = my_squared_eucledean_distance(x,features[i],FEATURE_LENGTH);
+
+        result[i]=current_distance;
+		if(current_distance < min_distance){
+			min_distance = current_distance;
+			closest_point = i;
 		}
+
 	}
     //TO HERE
     timer_opt_ED = timer_end(stv);
