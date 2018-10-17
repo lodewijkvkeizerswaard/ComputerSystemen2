@@ -52,13 +52,22 @@ OPTIONS:
 
 data_t my_squared_eucledean_distance(data_t *x,data_t *y, int length){
 	data_t distance = 0;
-    data_t diff;
+    data_t diff, diff1, diff2, diff3;
 	int i = 0;
-
-	for (i = 0; i < length; i++) {
-        distance += (mult(abs_diff(x[i],y[i]), abs_diff(x[i],y[i])));
+	for (i = 0; i < length; i+=4) {
+        diff = x[i]-y[i];
+        diff1 = x[i+1]-y[i+1];
+        diff2 = x[i+2]-y[i+2];
+        diff3 = x[i+3]-y[i+3];
+        
+        distance += diff * diff;
+        distance += diff1 * diff1;
+        distance += diff2 * diff2;
+        distance += diff3 * diff3;
 	}
-
+    while(i<length){
+        distance += mult(abs_diff(x[i],y[i]),abs_diff(x[i],y[i]));
+    }
 	return distance;
 }
 
