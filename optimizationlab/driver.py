@@ -8,7 +8,7 @@ REPEAT_MEASURE_NB=10
 # Your code will be tested on the DAS5.
 
 
-ON_DAS5=False
+ON_DAS5=True
 
 benchmark_list_das5=[{"id":"reference","filename":"prun -np 1 ./k_nearest","is_reference":True,"benchmark_results":[]},\
         {"id":"optimized sequential","filename":"prun -np 1 ./k_nearest_seq","is_reference":False,"benchmark_results":[]},\

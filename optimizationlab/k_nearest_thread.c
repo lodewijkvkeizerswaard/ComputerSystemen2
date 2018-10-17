@@ -120,7 +120,7 @@ data_t *opt_classify_MD(unsigned int lookFor, unsigned int *found) {
 
     for (i=0; i<NUM_THREADS; i++)
     {
-       	threadParameters[i].id=i;
+    threadParameters[i].id=i;
 	threadParameters[i].chunk=chunk;
 	threadParameters[i].min_distance=min_distance;
 	threadParameters[i].lookFor=lookFor;
@@ -184,25 +184,79 @@ data_t *ref_classify_ED(unsigned int lookFor, unsigned int *found) {
     return result;
 }
 
+void *thread_eucledean_distance(void *arg)
+{
+   int i; 
+   parm *p=(parm *)arg;
+   unsigned int start_index, end_index;
+   data_t current_distance;
+
+   start_index=p->id * p->chunk;
+   end_index=start_index+p->chunk;
+
+   for(i=start_index;i<end_index;i++){
+      current_distance = squared_eucledean_distance(features[p->lookFor],features[i],FEATURE_LENGTH);
+      p->tempResult[i]=current_distance;
+      if(current_distance<p->min_distance){
+         p->min_distance=current_distance;
+         p->located=i;   
+      }
+   }
+   return (NULL);
+}
+
 //Modify this function
 data_t *opt_classify_ED(unsigned int lookFor, unsigned int *found) {
     data_t *result =(data_t*)malloc(sizeof(data_t)*(ROWS-1));
     struct timeval stv, etv;
-    int i,closest_point=0;
+    int i,closest_point=0, chunk=(ROWS-1)/NUM_THREADS;
     data_t min_distance,current_distance;
-	
-    timer_start(&stv);
+	pthread_t mythreads[NUM_THREADS];
+    parm threadParameters[NUM_THREADS];
+
     //FROM HERE
-	min_distance = squared_eucledean_distance(features[lookFor],features[0],FEATURE_LENGTH);
-    	result[0] = min_distance;
-	for(i=1;i<ROWS-1;i++){
-		current_distance = squared_eucledean_distance(features[lookFor],features[i],FEATURE_LENGTH);
-        	result[i]=current_distance;
-		if(current_distance<min_distance){
-			min_distance=current_distance;
-			closest_point=i;
-		}
-	}
+    timer_start(&stv);
+
+    min_distance = 1000000.0;
+
+// INITIALIZE THREADS
+    for (i=0; i<NUM_THREADS; i++)
+    {
+        threadParameters[i].id=i;
+        threadParameters[i].chunk=chunk;
+        threadParameters[i].min_distance=min_distance;
+        threadParameters[i].lookFor=lookFor;
+        threadParameters[i].located=0;
+        threadParameters[i].tempResult=result; 
+    }	
+
+    // EXECUTE THREAD FUNCTION
+    for (i=0; i<NUM_THREADS; i++) {
+        pthread_create(&mythreads[i], NULL, thread_eucledean_distance, (void *)(threadParameters+i));
+    }
+
+    // EXECUTE THE LAST FEW ROWS IF THE LENGTH IS NOT DEVIDABLE BY THE AMOUNT OF THREADS
+    for(i=NUM_THREADS*chunk;i<ROWS-1;i++){
+               current_distance = squared_eucledean_distance(features[lookFor],features[i],FEATURE_LENGTH);
+                result[i]=current_distance;
+                if(current_distance<min_distance){
+                        min_distance=current_distance;
+                        closest_point=i;
+                }
+        }
+    
+    // JOIN THREADS
+    for (i=0; i<NUM_THREADS; i++) {
+                pthread_join(mythreads[i],NULL);
+        }
+
+    // SEE WHICH THREAD HAS THE SMALLEST DISTANCE
+    for (i=0; i<NUM_THREADS; i++) {
+	if (threadParameters[i].min_distance<min_distance) {
+		min_distance=threadParameters[i].min_distance;
+		closest_point=threadParameters[i].located;
+        }
+    }
     //TO HERE
     timer_opt_ED = timer_end(stv);
     printf("Calculation using optimized ED took: %10.6f \n", timer_opt_ED);
@@ -235,26 +289,82 @@ data_t *ref_classify_CS(unsigned int lookFor, unsigned int* found) {
     return result;
 }
 
+void *thread_cosine_similarity(void *arg)
+{
+   int i; 
+   parm *p=(parm *)arg;
+   unsigned int start_index, end_index;
+   data_t current_distance;
+
+   start_index=p->id * p->chunk;
+   end_index=start_index+p->chunk;
+
+   for(i=start_index;i<end_index;i++){
+      current_distance = cosine_similarity(features[p->lookFor],features[i],FEATURE_LENGTH);
+      p->tempResult[i]=current_distance;
+      if(current_distance > p->min_distance){
+         p->min_distance=current_distance;
+         p->located=i;   
+      }
+   }
+   return (NULL);
+}
+
 //Modify this function 
 data_t *opt_classify_CS(unsigned int lookFor, unsigned int *found) {
     data_t *result =(data_t*)malloc(sizeof(data_t)*(ROWS-1));
     struct timeval stv, etv;
-    int i,closest_point=0;
+    int i,closest_point=0, chunk=(ROWS-1)/NUM_THREADS;
     data_t min_distance,current_distance;
+    pthread_t mythreads[NUM_THREADS];
+    parm threadParameters[NUM_THREADS];
 
     timer_start(&stv);
 
     //MODIFY FROM HERE
-	min_distance = cosine_similarity(features[lookFor],features[0],FEATURE_LENGTH);
-    	result[0] = min_distance;
-	for(i=1;i<ROWS-1;i++) {
-		current_distance = cosine_similarity(features[lookFor],features[i],FEATURE_LENGTH);
-        	result[i]=current_distance;
-		if(current_distance>min_distance){
-			min_distance=current_distance;
-			closest_point=i;
-		}
-	}
+        timer_start(&stv);
+
+    min_distance = 0;
+
+// INITIALIZE THREADS
+    for (i=0; i<NUM_THREADS; i++)
+    {
+        threadParameters[i].id=i;
+        threadParameters[i].chunk=chunk;
+        threadParameters[i].min_distance=min_distance;
+        threadParameters[i].lookFor=lookFor;
+        threadParameters[i].located=0;
+        threadParameters[i].tempResult=result; 
+    }	
+
+    // EXECUTE THREAD FUNCTION
+    for (i=0; i<NUM_THREADS; i++) {
+        pthread_create(&mythreads[i], NULL, thread_cosine_similarity, (void *)(threadParameters+i));
+    }
+
+    // EXECUTE THE LAST FEW ROWS IF THE LENGTH IS NOT DEVIDABLE BY THE AMOUNT OF THREADS
+    for(i=NUM_THREADS*chunk;i<ROWS-1;i++){
+               current_distance = cosine_similarity(features[lookFor],features[i],FEATURE_LENGTH);
+                result[i]=current_distance;
+                if(current_distance > min_distance){
+                        min_distance=current_distance;
+                        closest_point=i;
+                }
+        }
+    
+    // JOIN THREADS
+    for (i=0; i<NUM_THREADS; i++) {
+                pthread_join(mythreads[i],NULL);
+        }
+
+    // SEE WHICH THREAD HAS THE SMALLEST DISTANCE
+    for (i=0; i<NUM_THREADS; i++) {
+	if (threadParameters[i].min_distance > min_distance) {
+		min_distance=threadParameters[i].min_distance;
+		closest_point=threadParameters[i].located;
+        }
+    }
+
     //TO HERE
     timer_opt_CS = timer_end(stv);
     printf("Calculation using optimized CS took: %10.6f \n", timer_opt_CS);

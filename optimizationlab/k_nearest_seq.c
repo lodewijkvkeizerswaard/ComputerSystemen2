@@ -56,7 +56,7 @@ data_t my_squared_eucledean_distance(data_t *x,data_t *y, int length){
 	int i = 0;
 
 	for (i = 0; i < length; i++) {
-        distance += mult(abs_diff(x[i],y[i]), abs_diff(x[i],y[i]));
+        distance += (mult(abs_diff(x[i],y[i]), abs_diff(x[i],y[i])));
 	}
 
 	return distance;
@@ -165,19 +165,20 @@ data_t *opt_classify_ED(unsigned int lookFor, unsigned int *found) {
     //FROM HERE
 
     data_t* x = features[lookFor];
-    
-	min_distance = my_squared_eucledean_distance(x,features[0],FEATURE_LENGTH);
-    result[0] = min_distance;
-	for(i = 0; i < ROWS - 1; i++){
-		current_distance = my_squared_eucledean_distance(x,features[i],FEATURE_LENGTH);
 
-        result[i]=current_distance;
-		if(current_distance < min_distance){
+	for(i = 0; i < ROWS - 1; i++){
+		result[i] = squared_eucledean_distance(x,features[i],FEATURE_LENGTH);
+	}
+
+    min_distance = result[0];
+    for(i = 1; i < ROWS - 1; i++){
+        current_distance = result[i];
+        if(current_distance < min_distance){
 			min_distance = current_distance;
 			closest_point = i;
 		}
+    }
 
-	}
     //TO HERE
     timer_opt_ED = timer_end(stv);
     printf("Calculation using optimized ED took: %10.6f \n", timer_opt_ED);

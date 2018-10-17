@@ -19,6 +19,9 @@
 /* Number of elements in a vector */
 #define VSIZE VBYTES/sizeof(data_t)
 
+int printingNorm = 1;
+int printingMyNorm = 1;
+
 
 /* Vector data type */
 typedef data_t vec_t __attribute__ ((vector_size(VBYTES)));
@@ -127,9 +130,38 @@ data_t squared_eucledean_distance(data_t *x,data_t *y, int length){
 	}
 	return distance;
 }
+
+data_t my_squared_eucledean_distance(data_t *x,data_t *y, int length){
+    data_t result = 0;
+	int i = 0;
+
+    __m256d vx,vy,sub,abs_diff, mult;
+    __m256d distance=_mm256_set_pd(0.0,0.0,0.0,0.0);
+    __m256d zero= _mm256_set_pd(0.0,0.0,0.0,0.0);
+	for(i = 0; i < length; i+=4){
+        vx = _mm256_load_pd(x+i);
+        vy = _mm256_load_pd(y+i);
+        sub = _mm256_sub_pd(vx,vy);
+        abs_diff= abs256_pd(sub);
+        mult = abs_diff * abs_diff;
+
+		distance=_mm256_add_pd(distance, mult);
+	}
+
+    distance = _mm256_hadd_pd(distance,zero);
+    double *v_distance = (double*) &distance;
+    result = v_distance[0]+v_distance[2];
+     
+    while (i < length) {
+        result += fabs(*(x+i) - *(y+i)) * fabs(*(x+i) - *(y+i));
+        i++;
+    }
+	return result;
+}
+
 data_t norm(data_t *x, int length){
     data_t n = 0;
-    int i=0;
+    int i = 0;
     for (i=0;i<length;i++){
         n += mult(x[i],x[i]);
     }
@@ -139,12 +171,67 @@ data_t norm(data_t *x, int length){
 
 data_t cosine_similarity(data_t *x, data_t *y, int length){
     data_t sim=0;
-    int i=0;
+    int i = 0;
+    
     for(i=0;i<length;i++){
         sim += mult(x[i],y[i]);
     }
+
     sim = sim / mult(norm(x,FEATURE_LENGTH),norm(y,FEATURE_LENGTH));
     return sim;
+}
+
+data_t my_norm(data_t *x, int length){
+    data_t result = 0;
+    int i = 0;
+    __m256d vx, mult;
+    __m256d n =_mm256_set_pd(0.0,0.0,0.0,0.0);
+    __m256d zero = _mm256_set_pd(0.0,0.0,0.0,0.0);
+
+    for (i = 0; i < length; i+=4){
+        vx = _mm256_load_pd(x+i);
+        mult = vx * vx;
+        n = _mm256_add_pd(n, mult);
+    }
+
+    n = _mm256_hadd_pd(n,zero);
+    double *v_n = (double*) &n;
+    result = v_n[0]+v_n[2];
+     
+    while (i < length) {
+        result += (*(x+i) * *(x+i));
+        i++;
+    }
+    result = sqrt(result);
+    return result;
+}
+
+data_t my_cosine_similarity(data_t *x, data_t *y, int length){
+    data_t result=0;
+    int i=0;
+
+    __m256d vx, vy, vmult;
+    __m256d sim=_mm256_set_pd(0.0,0.0,0.0,0.0);
+    __m256d zero= _mm256_set_pd(0.0,0.0,0.0,0.0);
+    for(i = 0; i < length; i+=4){
+        vx = _mm256_load_pd(x+i);
+        vy = _mm256_load_pd(y+i);
+        vmult = vx * vy;
+
+		sim = _mm256_add_pd(sim, vmult);
+    }
+
+    sim = _mm256_hadd_pd(sim,zero);
+    double *v_sim = (double*) &sim;
+    result = v_sim[0]+v_sim[2];
+     
+    while (i < length) {
+        result += (*(x+i) * *(y+i));
+        i++;
+    }
+
+    result = result / (my_norm(x,FEATURE_LENGTH) * my_norm(y,FEATURE_LENGTH));
+    return result;
 }
 
 
@@ -206,7 +293,7 @@ data_t *ref_classify_ED(unsigned int lookFor, unsigned int *found) {
 
 	timer_start(&stv);
 	min_distance = squared_eucledean_distance(features[lookFor],features[0],FEATURE_LENGTH);
-    	result[0] = min_distance;
+    result[0] = min_distance;
 	for(i=1;i<ROWS-1;i++){
 		current_distance = squared_eucledean_distance(features[lookFor],features[i],FEATURE_LENGTH);
         result[i]=current_distance;
@@ -230,11 +317,12 @@ data_t *opt_classify_ED(unsigned int lookFor, unsigned int *found) {
 
 	timer_start(&stv);
     //FROM HERE
-	min_distance = squared_eucledean_distance(features[lookFor],features[0],FEATURE_LENGTH);
-    	result[0] = min_distance;
+
+	min_distance = my_squared_eucledean_distance(features[lookFor],features[0],FEATURE_LENGTH);
+    result[0] = min_distance;
 	for(i=1;i<ROWS-1;i++){
-		current_distance = squared_eucledean_distance(features[lookFor],features[i],FEATURE_LENGTH);
-        	result[i]=current_distance;
+		current_distance = my_squared_eucledean_distance(features[lookFor],features[i],FEATURE_LENGTH);
+        result[i]=current_distance;
 		if(current_distance<min_distance){
 			min_distance=current_distance;
 			closest_point=i;
@@ -257,7 +345,7 @@ data_t *ref_classify_CS(unsigned int lookFor, unsigned int* found) {
 
 	timer_start(&stv);
 	min_distance = cosine_similarity(features[lookFor],features[0],FEATURE_LENGTH);
-    	result[0] = min_distance;
+    result[0] = min_distance;
 	for(i=1;i<ROWS-1;i++){
 		current_distance = cosine_similarity(features[lookFor],features[i],FEATURE_LENGTH);
         	result[i]=current_distance;
@@ -282,10 +370,10 @@ data_t *opt_classify_CS(unsigned int lookFor, unsigned int *found) {
     timer_start(&stv);
 
     //MODIFY FROM HERE
-	min_distance = cosine_similarity(features[lookFor],features[0],FEATURE_LENGTH);
+	min_distance = my_cosine_similarity(features[lookFor],features[0],FEATURE_LENGTH);
     	result[0] = min_distance;
 	for(i=1;i<ROWS-1;i++) {
-		current_distance = cosine_similarity(features[lookFor],features[i],FEATURE_LENGTH);
+		current_distance = my_cosine_similarity(features[lookFor],features[i],FEATURE_LENGTH);
         	result[i]=current_distance;
 		if(current_distance>min_distance){
 			min_distance=current_distance;
